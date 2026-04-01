@@ -1,0 +1,39 @@
+services:
+  git-ssh:
+    build:
+      context: .
+      dockerfile: git-ssh/Containerfile
+      args:
+        DEBIAN_SUITE: ${DEBIAN_SUITE}
+        DEBIAN_DATE: ${DEBIAN_DATE}
+        DEBIAN_VARIANT: ${DEBIAN_VARIANT}
+        DEBIAN_SHA256: ${DEBIAN_SHA256}
+    container_name: git-ssh
+    ports:
+      - "2222:22"
+    volumes:
+      - repos:/srv/git
+      - ssh-data:/var/lib/gitbox/ssh
+    restart: unless-stopped
+
+  cgit-web:
+    build:
+      context: .
+      dockerfile: cgit-web/Containerfile
+      args:
+        DEBIAN_SUITE: ${DEBIAN_SUITE}
+        DEBIAN_DATE: ${DEBIAN_DATE}
+        DEBIAN_VARIANT: ${DEBIAN_VARIANT}
+        DEBIAN_SHA256: ${DEBIAN_SHA256}
+    container_name: cgit-web
+    ports:
+      - "8080:80"
+    volumes:
+      - repos:/srv/git:ro
+    restart: unless-stopped
+    depends_on:
+      - git-ssh
+
+volumes:
+  repos:
+  ssh-data:

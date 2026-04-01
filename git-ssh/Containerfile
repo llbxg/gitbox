@@ -1,0 +1,45 @@
+ARG DEBIAN_SUITE
+ARG DEBIAN_DATE
+ARG DEBIAN_VARIANT
+ARG DEBIAN_SHA256
+
+ARG DEBIAN_IMAGE=debian:${DEBIAN_SUITE}-${DEBIAN_DATE}-${DEBIAN_VARIANT}@sha256:${DEBIAN_SHA256}
+
+FROM ${DEBIAN_IMAGE}
+
+ARG DEBIAN_SUITE
+ARG DEBIAN_DATE
+
+COPY --chmod=755 scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
+RUN DEBIAN_SUITE="${DEBIAN_SUITE}" \
+    DEBIAN_DATE="${DEBIAN_DATE}" \
+    /usr/local/bin/setup-apt-snapshot.sh
+
+RUN apt-get install -y --no-install-recommends \
+    git \
+    openssh-server \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -d /home/git -s /usr/bin/git-shell git \
+ && usermod -p '*' git \
+ && mkdir -p /home/git/git-shell-commands /srv/git /srv/git/mirrors /var/run/sshd /var/lib/gitbox/ssh \
+ && touch /home/git/.hushlogin \
+ && chown -R git:git /home/git /srv/git /srv/git/mirrors /var/lib/gitbox/ssh \
+ && chmod 755 /home/git/git-shell-commands \
+ && chmod 700 /var/lib/gitbox/ssh
+
+RUN ssh-keygen -A
+
+COPY git-ssh/entrypoint.sh /entrypoint.sh
+COPY git-ssh/scripts/repoctl.sh /usr/local/bin/repoctl
+COPY git-ssh/scripts/no-interactive-login.sh /home/git/git-shell-commands/no-interactive-login
+
+RUN mkdir -p /etc/ssh/sshd_config.d
+COPY git-ssh/configs/sshd.conf /etc/ssh/sshd_config.d/
+
+RUN chmod +x /entrypoint.sh /usr/local/bin/repoctl /home/git/git-shell-commands/no-interactive-login \
+ && chown git:git /home/git/git-shell-commands/no-interactive-login
+
+EXPOSE 22
+ENTRYPOINT ["/entrypoint.sh"]

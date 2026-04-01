@@ -1,0 +1,86 @@
+ARG DEBIAN_SUITE
+ARG DEBIAN_DATE
+ARG DEBIAN_VARIANT
+ARG DEBIAN_SHA256
+
+ARG DEBIAN_IMAGE=debian:${DEBIAN_SUITE}-${DEBIAN_DATE}-${DEBIAN_VARIANT}@sha256:${DEBIAN_SHA256}
+
+ARG CGIT_VERSION=1.3
+ARG CGIT_TAG=v1.3
+ARG CGIT_COMMIT=61ef851ef52c3094d12fefad3576262606fddd27
+ARG CGIT_GPG_KEY=49FC7012A5DE03AE
+ARG CGIT_GPG_FPR=AB9942E6D4A4CFC3412620A749FC7012A5DE03AE
+
+# ---
+
+FROM ${DEBIAN_IMAGE} AS builder
+
+ARG DEBIAN_SUITE
+ARG DEBIAN_DATE
+ARG CGIT_VERSION
+ARG CGIT_TAG
+ARG CGIT_COMMIT
+ARG CGIT_GPG_KEY
+ARG CGIT_GPG_FPR
+
+COPY --chmod=755 scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
+RUN DEBIAN_SUITE="${DEBIAN_SUITE}" \
+    DEBIAN_DATE="${DEBIAN_DATE}" \
+    /usr/local/bin/setup-apt-snapshot.sh
+
+WORKDIR /build
+
+RUN apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    gnupg \
+    libssl-dev \
+    libzip-dev \
+    pkg-config \
+    xz-utils \
+    zlib1g-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY cgit-web/keys/jason.asc /tmp/jason.asc
+COPY --chmod=755 cgit-web/scripts/fetch-cgit-source.sh /usr/local/bin/fetch-cgit-source.sh
+
+RUN CGIT_REPO="https://git.zx2c4.com/cgit" \
+    CGIT_TAG="${CGIT_TAG}" \
+    CGIT_COMMIT="${CGIT_COMMIT}" \
+    CGIT_GPG_KEY="${CGIT_GPG_KEY}" \
+    CGIT_GPG_FPR="${CGIT_GPG_FPR}" \
+    CGIT_KEY_FILE="/tmp/jason.asc" \
+    /usr/local/bin/fetch-cgit-source.sh
+
+# ---
+
+FROM ${DEBIAN_IMAGE}
+
+ARG DEBIAN_SUITE
+ARG DEBIAN_DATE
+
+COPY --chmod=755 scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
+RUN DEBIAN_SUITE="${DEBIAN_SUITE}" \
+    DEBIAN_DATE="${DEBIAN_DATE}" \
+    /usr/local/bin/setup-apt-snapshot.sh
+
+RUN apt-get install -y --no-install-recommends \
+    ca-certificates \
+    lighttpd \
+    python3 \
+    python3-markdown \
+    python3-pygments \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /out/usr/lib/cgit /usr/lib/cgit
+COPY --from=builder /out/usr/share/cgit /usr/share/cgit
+
+COPY cgit-web/configs/lighttpd.conf /etc/lighttpd/lighttpd.conf
+COPY cgit-web/configs/cgitrc /etc/cgitrc
+COPY cgit-web/static/lightblue.png /usr/share/cgit/cgit.png
+COPY cgit-web/static/favicon.ico /usr/share/cgit/favicon.ico
+
+EXPOSE 80
+CMD ["lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]
