@@ -23,7 +23,7 @@ ARG CGIT_COMMIT
 ARG CGIT_GPG_KEY
 ARG CGIT_GPG_FPR
 
-COPY --chmod=755 scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
+COPY --chmod=755 container/scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
 RUN DEBIAN_SUITE="${DEBIAN_SUITE}" \
     DEBIAN_DATE="${DEBIAN_DATE}" \
     /usr/local/bin/setup-apt-snapshot.sh
@@ -43,8 +43,8 @@ RUN apt-get install -y --no-install-recommends \
     zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
-COPY cgit-web/keys/jason.asc /tmp/jason.asc
-COPY --chmod=755 cgit-web/scripts/fetch-cgit-source.sh /usr/local/bin/fetch-cgit-source.sh
+COPY container/cgit-web/keys/jason.asc /tmp/jason.asc
+COPY --chmod=755 container/cgit-web/scripts/fetch-cgit-source.sh /usr/local/bin/fetch-cgit-source.sh
 
 RUN CGIT_REPO="https://git.zx2c4.com/cgit" \
     CGIT_TAG="${CGIT_TAG}" \
@@ -61,7 +61,7 @@ FROM ${DEBIAN_IMAGE}
 ARG DEBIAN_SUITE
 ARG DEBIAN_DATE
 
-COPY --chmod=755 scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
+COPY --chmod=755 container/scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
 RUN DEBIAN_SUITE="${DEBIAN_SUITE}" \
     DEBIAN_DATE="${DEBIAN_DATE}" \
     /usr/local/bin/setup-apt-snapshot.sh
@@ -77,10 +77,10 @@ RUN apt-get install -y --no-install-recommends \
 COPY --from=builder /out/usr/lib/cgit /usr/lib/cgit
 COPY --from=builder /out/usr/share/cgit /usr/share/cgit
 
-COPY cgit-web/configs/lighttpd.conf /etc/lighttpd/lighttpd.conf
-COPY cgit-web/configs/cgitrc /etc/cgitrc
-COPY cgit-web/static/lightblue.png /usr/share/cgit/cgit.png
-COPY cgit-web/static/favicon.ico /usr/share/cgit/favicon.ico
+COPY container/cgit-web/configs/lighttpd.conf /etc/lighttpd/lighttpd.conf
+COPY container/cgit-web/configs/cgitrc /etc/cgitrc
+COPY container/cgit-web/static/lightblue.png /usr/share/cgit/cgit.png
+COPY container/cgit-web/static/favicon.ico /usr/share/cgit/favicon.ico
 
 EXPOSE 80
 CMD ["lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]

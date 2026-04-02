@@ -10,7 +10,7 @@ FROM ${DEBIAN_IMAGE}
 ARG DEBIAN_SUITE
 ARG DEBIAN_DATE
 
-COPY --chmod=755 scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
+COPY --chmod=755 container/scripts/setup-apt-snapshot.sh /usr/local/bin/setup-apt-snapshot.sh
 RUN DEBIAN_SUITE="${DEBIAN_SUITE}" \
     DEBIAN_DATE="${DEBIAN_DATE}" \
     /usr/local/bin/setup-apt-snapshot.sh
@@ -31,12 +31,12 @@ RUN useradd -m -d /home/git -s /usr/bin/git-shell git \
 
 RUN ssh-keygen -A
 
-COPY git-ssh/entrypoint.sh /entrypoint.sh
-COPY git-ssh/scripts/repoctl.sh /usr/local/bin/repoctl
-COPY git-ssh/scripts/no-interactive-login.sh /home/git/git-shell-commands/no-interactive-login
+COPY container/git-ssh/entrypoint.sh /entrypoint.sh
+COPY container/git-ssh/scripts/repoctl.sh /usr/local/bin/repoctl
+COPY container/git-ssh/scripts/no-interactive-login.sh /home/git/git-shell-commands/no-interactive-login
 
 RUN mkdir -p /etc/ssh/sshd_config.d
-COPY git-ssh/configs/sshd.conf /etc/ssh/sshd_config.d/
+COPY container/git-ssh/configs/sshd.conf /etc/ssh/sshd_config.d/
 
 RUN chmod +x /entrypoint.sh /usr/local/bin/repoctl /home/git/git-shell-commands/no-interactive-login \
  && chown git:git /home/git/git-shell-commands/no-interactive-login

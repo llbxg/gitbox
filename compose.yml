@@ -2,7 +2,7 @@ services:
   git-ssh:
     build:
       context: .
-      dockerfile: git-ssh/Containerfile
+      dockerfile: container/git-ssh/Containerfile
       args:
         DEBIAN_SUITE: ${DEBIAN_SUITE}
         DEBIAN_DATE: ${DEBIAN_DATE}
@@ -19,7 +19,7 @@ services:
   cgit-web:
     build:
       context: .
-      dockerfile: cgit-web/Containerfile
+      dockerfile: container/cgit-web/Containerfile
       args:
         DEBIAN_SUITE: ${DEBIAN_SUITE}
         DEBIAN_DATE: ${DEBIAN_DATE}
