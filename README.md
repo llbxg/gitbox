@@ -44,7 +44,7 @@ Host gitbox
 ### Keys
 
 ~~~bash
-tools/set-key.sh "nerdctl" "sudo " "<path_to_publickey>"
+./tools/gbctl.sh key set "<path_to_publickey>"
 ~~~
 
 ### Verify
@@ -87,11 +87,20 @@ GitBox supports mirroring external repositories under the `mirrors/` namespace.
 ### Create a Mirror
 
 ~~~bash
-./tools/manage-mirror.sh init git@github.com:llbxg/gitbox.git
+./tools/gbctl.sh mirror init git@github.com:llbxg/gitbox.git
 ~~~
 
 ### Update a Mirror
 
 ~~~bash
-./tools/manage-mirror.sh update gitbox
+./tools/gbctl.sh mirror update gitbox
+~~~
+
+## Back Up Volumes
+
+Create and apply a backup archive for the `repos` and `ssh-data` volumes:
+
+~~~bash
+./tools/gbctl.sh backup create /tmp/gitbox-backup.tar.gz
+./tools/gbctl.sh backup apply /tmp/gitbox-backup.tar.gz
 ~~~
