@@ -82,6 +82,13 @@ run_container_exec() {
   run_engine exec -u root "$container_name" "$@"
 }
 
+cleanup_dir() {
+  local path="${1:-}"
+  [ -n "$path" ] || return 0
+  [ -d "$path" ] || return 0
+  rm -rf "$path"
+}
+
 usage() {
   cat <<EOF
 usage:
@@ -341,7 +348,7 @@ backup_create_cmd() {
   image="$(helper_image)"
   project="$(compose_project_name)"
   temp_dir="$(mktemp -d)"
-  trap 'rm -rf "$temp_dir"' EXIT
+  trap "cleanup_dir '$temp_dir'" EXIT
 
   debug "engine: ${GB_ENGINE}"
   debug "use sudo: ${GB_USE_SUDO:-0}"
@@ -379,7 +386,7 @@ backup_apply_cmd() {
   image="$(helper_image)"
   project="$(compose_project_name)"
   temp_dir="$(mktemp -d)"
-  trap 'rm -rf "$temp_dir"' EXIT
+  trap "cleanup_dir '$temp_dir'" EXIT
 
   debug "engine: ${GB_ENGINE}"
   debug "use sudo: ${GB_USE_SUDO:-0}"
