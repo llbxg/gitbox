@@ -11,17 +11,17 @@ die() {
 
 debug() {
   [ "$GB_DEBUG" -eq 1 ] || return 0
-  printf '[debug] %s\n' "$*"
+  printf '[debug] %s\n' "$*" >&2
 }
 
 print_command() {
   [ "$GB_DEBUG" -eq 1 ] || return 0
 
-  printf '[debug] run:'
+  printf '[debug] run:' >&2
   for arg in "$@"; do
-    printf ' %q' "$arg"
+    printf ' %q' "$arg" >&2
   done
-  printf '\n'
+  printf '\n' >&2
 }
 
 run_cmd() {
@@ -95,6 +95,7 @@ usage:
   $0 [--debug] repoctl <args...>
   $0 [--debug] mirror init <source-url> [name]
   $0 [--debug] mirror update <name>
+  $0 [--debug] mirror cleanup [--dry-run|--apply]
   $0 [--debug] key set <public-key-path>
   $0 [--debug] backup create <archive.tar.gz>
   $0 [--debug] backup apply <archive.tar.gz>
@@ -217,6 +218,83 @@ mirror_update_cmd() {
   run_cmd git -C "$repo" push --mirror gitbox
 
   echo "[mirror] done mirrors/$name"
+}
+
+mirror_repo_name_from_path() {
+  local repo_path="$1"
+  local root rel
+
+  root="$(mirror_root)"
+  rel="${repo_path#$root/}"
+  rel="${rel%.git}"
+  printf '%s\n' "$rel"
+}
+
+repoctl_list_names() {
+  local line
+
+  require_engine
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '%s\n' "${line%%$'\t'*}"
+  done < <(run_container_exec "$(git_container_name)" repoctl list)
+}
+
+mirror_cleanup_cmd() {
+  local mode="${1:---dry-run}"
+  local root repo_path repo_name removed=0
+  local -A remote_repos=()
+
+  require_engine
+  root="$(mirror_root)"
+
+  case "$mode" in
+    --dry-run|--apply)
+      ;;
+    *)
+      die "unknown mirror cleanup mode: ${mode}"
+      ;;
+  esac
+
+  debug "engine: ${GB_ENGINE}"
+  debug "use sudo: ${GB_USE_SUDO:-0}"
+  debug "mirror root: ${root}"
+  debug "mode: ${mode}"
+
+  if [ ! -d "$root" ]; then
+    echo "[mirror] no local mirror root: $root"
+    return 0
+  fi
+
+  while IFS= read -r repo_name; do
+    [ -n "$repo_name" ] || continue
+    remote_repos["$repo_name"]=1
+  done < <(repoctl_list_names)
+
+  while IFS= read -r repo_path; do
+    repo_name="$(mirror_repo_name_from_path "$repo_path")"
+
+    if [ -n "${remote_repos["repos/mirrors/$repo_name"]+x}" ]; then
+      continue
+    fi
+
+    removed=1
+    if [ "$mode" = "--apply" ]; then
+      echo "[mirror] remove $repo_name"
+      run_cmd rm -rf "$repo_path"
+    else
+      echo "[mirror] stale $repo_name"
+    fi
+  done < <(find "$root" -type d -name '*.git' | sort)
+
+  if [ "$removed" -eq 0 ]; then
+    echo "[mirror] no stale mirrors"
+    return 0
+  fi
+
+  if [ "$mode" = "--dry-run" ]; then
+    echo "[mirror] dry-run only; rerun with --apply to remove stale mirrors"
+  fi
 }
 
 key_set_cmd() {
@@ -429,6 +507,10 @@ main() {
         update)
           [ $# -eq 3 ] || usage
           mirror_update_cmd "$3"
+          ;;
+        cleanup)
+          [ $# -le 3 ] || usage
+          mirror_cleanup_cmd "${3:---dry-run}"
           ;;
         *)
           usage
