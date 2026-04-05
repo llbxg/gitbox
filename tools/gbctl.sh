@@ -85,6 +85,7 @@ run_container_exec() {
 usage() {
   cat <<EOF
 usage:
+  $0 [--debug] repoctl <args...>
   $0 [--debug] mirror init <source-url> [name]
   $0 [--debug] mirror update <name>
   $0 [--debug] key set <public-key-path>
@@ -141,6 +142,17 @@ mirror_remote_url() {
 
 git_container_name() {
   printf '%s\n' "${GB_CONTAINER:-git-ssh}"
+}
+
+repoctl_cmd() {
+  require_engine
+  [ $# -gt 0 ] || die "repoctl arguments are required"
+
+  debug "engine: ${GB_ENGINE}"
+  debug "use sudo: ${GB_USE_SUDO:-0}"
+  debug "container: $(git_container_name)"
+
+  run_container_exec "$(git_container_name)" repoctl "$@"
 }
 
 mirror_init_cmd() {
@@ -397,6 +409,10 @@ main() {
   action="${2:-}"
 
   case "$area" in
+    repoctl)
+      [ $# -ge 2 ] || usage
+      repoctl_cmd "${@:2}"
+      ;;
     mirror)
       case "$action" in
         init)
