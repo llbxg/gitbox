@@ -58,7 +58,7 @@ GitBox uses `git-shell`, so interactive shell access is disabled.
 ## Create a Repository
 
 ~~~bash
-sudo nerdctl exec -u root git-ssh repoctl create myrepo "My first repo"
+./tools/gbctl.sh repoctl create myrepo "My first repo"
 ~~~
 
 ## Push
@@ -73,7 +73,7 @@ git push -u origin main
 Manage repositories inside the container:
 
 ~~~bash
-sudo nerdctl exec -u root git-ssh repoctl --help
+./tools/gbctl.sh repoctl --help
 ~~~
 
 ## Web UI
