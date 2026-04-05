@@ -96,6 +96,13 @@ GitBox supports mirroring external repositories under the `mirrors/` namespace.
 ./tools/gbctl.sh mirror update gitbox
 ~~~
 
+### Clean Up Stale Local Mirrors
+
+~~~bash
+./tools/gbctl.sh mirror cleanup
+./tools/gbctl.sh mirror cleanup --apply
+~~~
+
 ## Back Up Volumes
 
 Create and apply a backup archive for the `repos` and `ssh-data` volumes:
