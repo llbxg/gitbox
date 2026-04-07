@@ -36,7 +36,7 @@ repo_display_name() {
 
   rel="${path#$ROOT/}"
   rel="${rel%.git}"
-  printf 'repos/%s\n' "$rel"
+  printf '%s\n' "$rel"
 }
 
 require_repo_exists() {
