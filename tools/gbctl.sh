@@ -93,7 +93,7 @@ usage() {
   cat <<EOF
 usage:
   $0 [--debug] repoctl <args...>
-  $0 [--debug] mirror init <source-url> [name]
+  $0 [--debug] mirror init <source-url> [dest]
   $0 [--debug] mirror update <name>
   $0 [--debug] mirror cleanup [--dry-run|--apply]
   $0 [--debug] key set <public-key-path>
@@ -143,9 +143,35 @@ mirror_repo_path() {
   printf '%s/%s.git\n' "$(mirror_root)" "$name"
 }
 
+normalize_mirror_dest() {
+  local src="$1"
+  local dest="${2:-}"
+  local base
+
+  if [ -z "$dest" ]; then
+    normalize_mirror_name "$src"
+    return
+  fi
+
+  dest="${dest#repos/}"
+  dest="${dest%/}"
+
+  case "$dest" in
+    *.git)
+      dest="${dest%.git}"
+      ;;
+    *)
+      base="$(normalize_mirror_name "$src")"
+      dest="${dest}/$base"
+      ;;
+  esac
+
+  printf '%s\n' "${dest#/}"
+}
+
 mirror_remote_url() {
-  local name="$1"
-  printf 'gitbox:repos/mirrors/%s.git\n' "$name"
+  local dest="$1"
+  printf 'gitbox:repos/%s.git\n' "$dest"
 }
 
 git_container_name() {
@@ -165,13 +191,13 @@ repoctl_cmd() {
 
 mirror_init_cmd() {
   local src="$1"
-  local explicit_name="${2:-}"
-  local name repo root container_name
+  local explicit_dest="${2:-}"
+  local dest repo root container_name
 
   require_engine
-  name="$(normalize_mirror_name "$src" "$explicit_name")"
+  dest="$(normalize_mirror_dest "$src" "$explicit_dest")"
   root="$(mirror_root)"
-  repo="$(mirror_repo_path "$name")"
+  repo="$(mirror_repo_path "$dest")"
   container_name="$(git_container_name)"
 
   debug "engine: ${GB_ENGINE}"
@@ -181,7 +207,7 @@ mirror_init_cmd() {
 
   mkdir -p "$root"
 
-  echo "[mirror] init mirrors/$name"
+  echo "[mirror] init repos/$dest"
 
   if [ ! -d "$repo" ]; then
     run_cmd git clone --mirror "$src" "$repo"
@@ -190,17 +216,17 @@ mirror_init_cmd() {
   run_cmd git -C "$repo" remote set-url origin "$src"
 
   run_container_exec "$container_name" \
-    repoctl create "mirrors/$name" "Mirror of $src" || true
+    repoctl create "$dest" "Mirror of $src" || true
 
   if git -C "$repo" remote get-url gitbox >/dev/null 2>&1; then
-    run_cmd git -C "$repo" remote set-url gitbox "$(mirror_remote_url "$name")"
+    run_cmd git -C "$repo" remote set-url gitbox "$(mirror_remote_url "$dest")"
   else
-    run_cmd git -C "$repo" remote add gitbox "$(mirror_remote_url "$name")"
+    run_cmd git -C "$repo" remote add gitbox "$(mirror_remote_url "$dest")"
   fi
 
   run_cmd git -C "$repo" push --mirror gitbox
 
-  echo "[mirror] done mirrors/$name"
+  echo "[mirror] done repos/$dest"
 }
 
 mirror_update_cmd() {
@@ -274,7 +300,7 @@ mirror_cleanup_cmd() {
   while IFS= read -r repo_path; do
     repo_name="$(mirror_repo_name_from_path "$repo_path")"
 
-    if [ -n "${remote_repos["repos/mirrors/$repo_name"]+x}" ]; then
+    if [ -n "${remote_repos["repos/$repo_name"]+x}" ]; then
       continue
     fi
 
