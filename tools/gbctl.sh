@@ -94,7 +94,7 @@ usage() {
 usage:
   $0 [--debug] repoctl <args...>
   $0 [--debug] mirror init <source-url> [dest]
-  $0 [--debug] mirror update <name>
+  $0 [--debug] mirror update <name|--all>
   $0 [--debug] mirror cleanup [--dry-run|--apply]
   $0 [--debug] key set <public-key-path>
   $0 [--debug] backup create <archive.tar.gz>
@@ -238,12 +238,48 @@ mirror_update_cmd() {
   [ -d "$repo" ] || die "not found: $repo"
 
   debug "mirror root: ${root}"
-  echo "[mirror] update mirrors/$name"
+  echo "[mirror] update repos/$name"
 
   run_cmd git -C "$repo" remote update
   run_cmd git -C "$repo" push --mirror gitbox
 
-  echo "[mirror] done mirrors/$name"
+  echo "[mirror] done repos/$name"
+}
+
+mirror_list_local_repos() {
+  local root="$1"
+
+  [ -d "$root" ] || return 0
+
+  find "$root" -type d -name '*.git' | sort | while IFS= read -r repo_path; do
+    mirror_repo_name_from_path "$repo_path"
+  done
+}
+
+mirror_update_all_cmd() {
+  local root updated=0 name
+
+  require_engine
+  root="$(mirror_root)"
+
+  debug "engine: ${GB_ENGINE}"
+  debug "use sudo: ${GB_USE_SUDO:-0}"
+  debug "mirror root: ${root}"
+
+  if [ ! -d "$root" ]; then
+    echo "[mirror] no local mirror root: $root"
+    return 0
+  fi
+
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    updated=1
+    mirror_update_cmd "$name"
+  done < <(mirror_list_local_repos "$root")
+
+  if [ "$updated" -eq 0 ]; then
+    echo "[mirror] no local mirrors"
+  fi
 }
 
 mirror_repo_name_from_path() {
@@ -297,8 +333,7 @@ mirror_cleanup_cmd() {
     remote_repos["$repo_name"]=1
   done < <(repoctl_list_names)
 
-  while IFS= read -r repo_path; do
-    repo_name="$(mirror_repo_name_from_path "$repo_path")"
+  while IFS= read -r repo_name; do
 
     if [ -n "${remote_repos["repos/$repo_name"]+x}" ]; then
       continue
@@ -311,7 +346,7 @@ mirror_cleanup_cmd() {
     else
       echo "[mirror] stale $repo_name"
     fi
-  done < <(find "$root" -type d -name '*.git' | sort)
+  done < <(mirror_list_local_repos "$root")
 
   if [ "$removed" -eq 0 ]; then
     echo "[mirror] no stale mirrors"
@@ -532,7 +567,11 @@ main() {
           ;;
         update)
           [ $# -eq 3 ] || usage
-          mirror_update_cmd "$3"
+          if [ "$3" = "--all" ]; then
+            mirror_update_all_cmd
+          else
+            mirror_update_cmd "$3"
+          fi
           ;;
         cleanup)
           [ $# -le 3 ] || usage
