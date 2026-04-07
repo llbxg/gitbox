@@ -82,6 +82,13 @@ run_container_exec() {
   run_engine exec -u root "$container_name" "$@"
 }
 
+run_container_exec_tty() {
+  local container_name="$1"
+  shift
+
+  run_engine exec -u root -it "$container_name" "$@"
+}
+
 cleanup_dir() {
   local path="${1:-}"
   [ -n "$path" ] || return 0
@@ -179,14 +186,35 @@ git_container_name() {
 }
 
 repoctl_cmd() {
+  local -a repoctl_args
+  local arg
+
   require_engine
   [ $# -gt 0 ] || die "repoctl arguments are required"
+  repoctl_args=("$@")
 
   debug "engine: ${GB_ENGINE}"
   debug "use sudo: ${GB_USE_SUDO:-0}"
   debug "container: $(git_container_name)"
 
-  run_container_exec "$(git_container_name)" repoctl "$@"
+  if [ "${repoctl_args[0]}" = "delete" ] && [ -t 0 ] && [ -t 1 ]; then
+    for arg in "${repoctl_args[@]:1}"; do
+      case "$arg" in
+        -y|--yes)
+          run_container_exec "$(git_container_name)" repoctl "${repoctl_args[@]}"
+          return
+          ;;
+        --)
+          break
+          ;;
+      esac
+    done
+
+    run_container_exec_tty "$(git_container_name)" repoctl "${repoctl_args[@]}"
+    return
+  fi
+
+  run_container_exec "$(git_container_name)" repoctl "${repoctl_args[@]}"
 }
 
 mirror_init_cmd() {
