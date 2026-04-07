@@ -335,7 +335,7 @@ mirror_cleanup_cmd() {
 
   while IFS= read -r repo_name; do
 
-    if [ -n "${remote_repos["repos/$repo_name"]+x}" ]; then
+    if [ -n "${remote_repos["$repo_name"]+x}" ]; then
       continue
     fi
 
