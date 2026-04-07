@@ -12,7 +12,7 @@ usage:
   repoctl get-desc <name>
   repoctl list
   repoctl rename <old-name> <new-name>
-  repoctl delete <name>
+  repoctl delete [--yes|-y] <name>
 EOF
 }
 
@@ -53,6 +53,28 @@ require_repo_not_exists() {
     echo "repository already exists: $path" >&2
     exit 1
   fi
+}
+
+confirm_delete() {
+  local name="$1"
+  local answer
+
+  if [ ! -t 0 ]; then
+    return 0
+  fi
+
+  printf 'Delete "%s"? [Y/n] ' "$name" >&2
+  read -r answer
+
+  case "$answer" in
+    ""|y|Y|yes|YES|Yes)
+      return 0
+      ;;
+    *)
+      echo "delete cancelled" >&2
+      exit 1
+      ;;
+  esac
 }
 
 cmd_create() {
@@ -145,6 +167,28 @@ cmd_rename() {
 }
 
 cmd_delete() {
+  local assume_yes=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -y|--yes)
+        assume_yes=1
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        usage
+        exit 1
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
   if [ $# -ne 1 ]; then
     usage
     exit 1
@@ -153,6 +197,10 @@ cmd_delete() {
   local path
   path="$(repo_path "$1")"
   require_repo_exists "$path"
+
+  if [ "$assume_yes" -ne 1 ]; then
+    confirm_delete "$1"
+  fi
 
   rm -rf "$path"
   echo "deleted: $path"
