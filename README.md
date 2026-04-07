@@ -82,18 +82,22 @@ Manage repositories inside the container:
 
 ## Mirror Repositories
 
-GitBox supports mirroring external repositories under the `mirrors/` namespace.
+GitBox supports mirroring external repositories under the `repos/` namespace.
 
 ### Create a Mirror
 
 ~~~bash
 ./tools/gbctl.sh mirror init git@github.com:llbxg/gitbox.git
+./tools/gbctl.sh mirror init git@github.com:llbxg/gitbox.git team
+./tools/gbctl.sh mirror init git@github.com:llbxg/gitbox.git team/custom.git
 ~~~
 
 ### Update a Mirror
 
 ~~~bash
 ./tools/gbctl.sh mirror update gitbox
+./tools/gbctl.sh mirror update team/custom
+./tools/gbctl.sh mirror update --all
 ~~~
 
 ### Clean Up Stale Local Mirrors
